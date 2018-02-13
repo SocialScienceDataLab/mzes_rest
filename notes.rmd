@@ -1,0 +1,137 @@
+# RESTful
+
+* interoperability between computer systems on the Internet. 
+* requesting systems to access and manipulate textual representations of Web resources 
+
+Example:
+
+https://api.ipify.org/?format=json
+
+> curl -s 'https://api.ipify.org/?format=json'
+
+```{r}
+require(httr)
+require(jsonlite)
+require(magrittr)
+require(tidyverse)
+
+res <- GET("https://api.ipify.org/", query = list(format = 'json'))
+content(res, type = "text", encoding = 'utf-8')
+content(res, type = "text", encoding = 'utf-8') %>% fromJSON
+
+content(res, type = "text", encoding = 'utf-8') %>% fromJSON %>% `[[`("ip")
+```
+
+More sophisticated example
+
+API article: https://github.com/derhuerst/db-rest/blob/master/docs/index.md
+
+https://1.db.transport.rest/stations?query=mannheim
+
+
+```{r}
+res <- GET("https://1.db.transport.rest/stations", query = list(query = 'mannheim'))
+mannheim_sid <- content(res)[[1]]$id
+res <- GET("https://1.db.transport.rest/stations", query = list(query = 'berlin'))
+berlin_sid <- content(res)[[1]]$id
+
+##https://1.db.transport.rest/journeys?from=8000244&to=8011160
+res <- GET("https://1.db.transport.rest/journeys", query = list(from = mannheim_sid, to = berlin_sid))
+```
+
+# HTTP Methods
+
+* GET
+Regular web request from browser, query strings (parameters) encoded in the URL
+
+* POST
+Request with information / file, query not encoded in the URL
+
+* DELETE / HEAD / PUT / ...
+
+Example: https://developers.facebook.com/docs/graph-api/reference/page
+
+# Facebook
+
+https://graph.facebook.com/AngelaMerkel
+
+Access token: your id, determining your right and measuring your usage.
+
+https://developers.facebook.com/tools/explorer
+
+```{r}
+
+res <- GET("https://graph.facebook.com/AngelaMerkel")
+content(res)
+temptoken <- ""
+res <- GET("https://graph.facebook.com/", path = "AngelaMerkel", query = list(access_token = temptoken))
+content(res)
+res <- GET("https://graph.facebook.com/", path = "AngelaMerkel/likes", query = list(access_token = temptoken))
+res <- GET("https://graph.facebook.com/", path = "AngelaMerkel/feed", query = list(access_token = temptoken))
+content(res)$data[[1]]$id
+res <- GET("https://graph.facebook.com/", path = paste0(content(res)$data[[1]]$id, "/", "comments"), query = list(access_token = temptoken, fields = "from"))
+```
+
+Tedious!
+
+## Abstractions
+
+Rfacebook by Pablo Barberá (LSE).
+
+```{r}
+## devtools::install_github("pablobarbera/Rfacebook/Rfacebook")
+require(Rfacebook)
+
+AM <- getPage("AngelaMerkel", feed = TRUE, reactions = TRUE, token = temptoken, api = 'v2.8')
+post <- getPost(AM$id[1], token = temptoken, n = 1000, likes = TRUE, comments = TRUE)
+post$comments[1,]
+```
+
+## Longterm token
+
+Facebook authentication
+
+https://developers.facebook.com/apps
+
+* add product: login
+* add OA redirect URIs
+* add site URL
+* add App Domains
+
+```{r}
+app_id <- ""
+app_secret <- ""
+longtoken <- fbOAuth(app_id = app_id, app_secret = app_secret)
+SPDposts <- getPage(page = "SPD", token = longtoken, n = 100, feed = TRUE)
+
+post <- getPost(AM$id[1], token = longtoken, n = 1000, likes = TRUE, comments = TRUE)
+post$comments[1,]
+```
+
+## SocialMediaLab
+
+An R project created at The Virtual Observatory for the Study of Online Networks (VOSON) Lab at ANU by Tim Graham and Robert Ackland.
+
+I contributed the ACC workflow to simpify the usage.
+
+* Authenticate - API related authentication
+* Collect - Data collection from social media APIs
+* Create - Create networks from social media data
+
+```{r}
+devtools::install_github('vosonlab/SocialMediaLab/SocialMediaLab')
+require(SocialMediaLab)
+require(magrittr)
+require(igraph)
+
+Authenticate("facebook", appID = app_id, appSecret = app_secret, extendedPermissions = TRUE) %>% SaveCredential()
+LoadCredential() %>% Collect(pageName = "SPD", rangeFrom = "2017-09-25", rangeTo = '2018-02-12') -> SPDdata
+SPDdata %>% Create('Bimodal') -> SPDbimodal
+
+### You can do it in a single pipeline
+Authenticate("facebook", appID = app_id, appSecret = app_secret, extendedPermissions = TRUE) %>% Collect(pageName = "SPD", rangeFrom = "2017-09-25", rangeTo = '2018-02-12') %>% Create('Bimodal') -> SPDbimodal
+
+plot(SPDbimodal, vertex.label = V(SPDbimodal)$username, vertex.color = ifelse(V(SPDbimodal)$type == "User", "Red", "White"))
+SPD_commenters <- data.frame(username = V(SPDbimodal)$username[match(names(sort(degree(SPDbimodal, mode = 'out'), TRUE)), V(SPDbimodal)$label)], degree = as.vector(sort(degree(SPDbimodal, mode = 'out'), TRUE)))
+SPD_commenters %>% filter(degree > 0)
+```
