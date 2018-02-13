@@ -135,3 +135,35 @@ plot(SPDbimodal, vertex.label = V(SPDbimodal)$username, vertex.color = ifelse(V(
 SPD_commenters <- data.frame(username = V(SPDbimodal)$username[match(names(sort(degree(SPDbimodal, mode = 'out'), TRUE)), V(SPDbimodal)$label)], degree = as.vector(sort(degree(SPDbimodal, mode = 'out'), TRUE)))
 SPD_commenters %>% filter(degree > 0)
 ```
+
+Twitter
+
+https://developer.twitter.com/en/docs/api-reference-index
+https://apps.twitter.com/
+
+
+```{r}
+
+## beware of copy-and-pasting, remember to check for extra spaces.
+
+tw_apikey <- ""
+tw_apisecret <- ""
+tw_accesstoken <- ""
+tw_accesstokensecret <- ""
+
+Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="@alice_weidel") %>% Create("Semantic") -> alice_semnet
+
+betweenness(alice_semnet) %>% sort
+degree(alice_semnet) %>% sort
+
+
+Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="@alice_weidel") %>% Create("Actor") -> alice_actor
+
+require(igraph)
+
+betweenness(alice_actor) %>% sort
+
+Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="@realdonaldtrump") %>% Create("Actor") -> donald_actor
+
+(alice_actor %u% donald_actor) %>% plot
+```
