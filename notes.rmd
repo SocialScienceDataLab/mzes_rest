@@ -118,6 +118,14 @@ I contributed the ACC workflow to simpify the usage.
 * Collect - Data collection from social media APIs
 * Create - Create networks from social media data
 
+http://vosonlab.net/SocialMediaLab/access_API
+
+### Facebook
+
+SML's Facebook data collection works only at the page level. The latest update of FB API (v.2.10) breaks it and no longer possible to collect data about users. But we can still get data about pages comment on another page.
+
+It can only generate Bimodal (two-mode) network of commenters and posts.
+
 ```{r}
 devtools::install_github('vosonlab/SocialMediaLab/SocialMediaLab')
 require(SocialMediaLab)
@@ -136,15 +144,27 @@ SPD_commenters <- data.frame(username = V(SPDbimodal)$username[match(names(sort(
 SPD_commenters %>% filter(degree > 0)
 ```
 
-Twitter
+### Twitter
 
 https://developer.twitter.com/en/docs/api-reference-index
 https://apps.twitter.com/
 
+SML's Twitter data collection is based on Keyword search. It can generate:
+
+1. Bimodal network
+2. Semantic network of tweets
+3. Actor network of mentions.
+
+NB: Twitter API can only search for 2 weeks of tweets, with the maximum of 1,500 tweets per query. You may need continuous surveillance. If you need historical data, you need to purchase it from GNIP.
 
 ```{r}
 
 ## beware of copy-and-pasting, remember to check for extra spaces.
+
+require(SocialMediaLab)
+require(magrittr)
+require(igraph)
+require(tidyverse)
 
 tw_apikey <- ""
 tw_apisecret <- ""
@@ -159,11 +179,89 @@ degree(alice_semnet) %>% sort
 
 Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="@alice_weidel") %>% Create("Actor") -> alice_actor
 
-require(igraph)
 
 betweenness(alice_actor) %>% sort
 
 Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="@realdonaldtrump") %>% Create("Actor") -> donald_actor
 
 (alice_actor %u% donald_actor) %>% plot
+
+## accumlation of data
+
+Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="#rstats") -> r_data
+
+### later
+
+Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="#rstats") -> r_data2
+
+r_data$id
+
+r_data %>% bind_rows(r_data2) %>% distinct(id, .keep_all = TRUE) -> r_data
+
+nrow(r_data)
+
+r_data %>% Create("Actor") %>% betweenness %>% sort
+
+# You may even do this
+
+Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="#rstats") -> r_data
+
+while(TRUE) {
+    Sys.sleep(600) # every ten mins
+    Authenticate("twitter", apiKey=tw_apikey, apiSecret=tw_apisecret, accessToken=tw_accesstoken, accessTokenSecret=tw_accesstokensecret) %>% Collect(searchTerm="#rstats") -> r_data2
+    r_data %>% bind_rows(r_data2) %>% distinct(id, .keep_all = TRUE) -> r_data
+}
+
 ```
+
+### Youtube (Weak)
+
+Google API console
+
+https://console.developers.google.com/cloud-resource-manager
+
+NB: only get first 100 comments
+
+```{r}
+Authenticate("youtube", apiKey = "") %>% Collect(videoIDs = c("6Ejga4kJUts", "hUFPooqKllA", "Yam5uK6e-bQ", "95HqlWRFrAk"), verbose = TRUE) -> yt_data
+```
+```{r}
+require(tuber)
+require(lubridate)
+
+yt_oauth(app_id = "", app_secret = "")
+cranberries <- get_all_comments(video_id = 'hxsJvKYyVyg')
+
+ymd_hms(as.character(cranberries$publishedAt)) %>% floor_date(unit = "day") %>% data_frame(date = .) %>% group_by(date) %>% tally %>% ungroup -> cran_date
+
+range(cran_date$date)
+
+res <- data_frame(date = seq(from = min(cran_date$date), to = max(cran_date$date), by = 'day'))
+
+res %>% left_join(cran_date, by = "date") %>% replace_na(list(n = 0)) %>% ggplot(aes(x = date, y = n)) + geom_line()
+```
+
+https://www.youtube.com/watch?v=yXQViqx6GMY
+
+```{r}
+
+christmas <- get_all_comments(video_id = 'yXQViqx6GMY')
+christmas$publishedAt <- ymd_hms(as.character(christmas$publishedAt))
+
+saveRDS(christmas, "christmas.RDS")
+ymd_hms(as.character(christmas$publishedAt)) %>% floor_date(unit = "day") %>% data_frame(date = .) %>% group_by(date) %>% tally %>% ungroup -> cran_date
+
+range(cran_date$date)
+
+res <- data_frame(date = seq(from = min(cran_date$date), to = max(cran_date$date), by = 'day'))
+
+require(plotly)
+res %>% left_join(cran_date, by = "date") %>% replace_na(list(n = 0)) -> res
+
+ggplot(res, aes(x = date, y = n)) + geom_line()
+
+res %>% filter(date >= as.Date('2017-05-01') & date <= as.Date('2017-07-31')) %>% ggplot(aes(x = date, y = n)) + geom_line()
+
+```
+
+https://www.reddit.com/r/me_irl/comments/6en7cy/meirl/?st=jdpzotmd&sh=9c033d72
