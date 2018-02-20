@@ -14,6 +14,16 @@ require(httr)
 require(jsonlite)
 require(magrittr)
 require(tidyverse)
+require(SocialMediaLab)
+require(magrittr)
+require(igraph)
+require(tuber)
+require(Rfacebook)
+require(lubridate)
+require(magrittr)
+require(igraph)
+require(plotly)
+
 
 res <- GET("https://api.ipify.org/", query = list(format = 'json'))
 content(res, type = "text", encoding = 'utf-8')
@@ -60,7 +70,6 @@ Access token: your id, determining your right and measuring your usage.
 https://developers.facebook.com/tools/explorer
 
 ```{r}
-
 res <- GET("https://graph.facebook.com/AngelaMerkel")
 content(res)
 temptoken <- ""
@@ -70,6 +79,14 @@ res <- GET("https://graph.facebook.com/", path = "AngelaMerkel/likes", query = l
 res <- GET("https://graph.facebook.com/", path = "AngelaMerkel/feed", query = list(access_token = temptoken))
 content(res)$data[[1]]$id
 res <- GET("https://graph.facebook.com/", path = paste0(content(res)$data[[1]]$id, "/", "comments"), query = list(access_token = temptoken, fields = "from"))
+
+### What POST does.
+
+```{r}
+### NEED TO HAVE USER PUBLISH_ACTION PERMISSION.
+
+token2 <- ""
+res <- POST("https://graph.facebook.com/", path = "me/feed", query = list(access_token = token2, message = "Ich kann die US-Wahlen beeinflussen."))
 ```
 
 Tedious!
@@ -80,8 +97,6 @@ Rfacebook by Pablo Barberá (LSE).
 
 ```{r}
 ## devtools::install_github("pablobarbera/Rfacebook/Rfacebook")
-require(Rfacebook)
-
 AM <- getPage("AngelaMerkel", feed = TRUE, reactions = TRUE, token = temptoken, api = 'v2.8')
 post <- getPost(AM$id[1], token = temptoken, n = 1000, likes = TRUE, comments = TRUE)
 post$comments[1,]
@@ -103,7 +118,6 @@ app_id <- ""
 app_secret <- ""
 longtoken <- fbOAuth(app_id = app_id, app_secret = app_secret)
 SPDposts <- getPage(page = "SPD", token = longtoken, n = 100, feed = TRUE)
-
 post <- getPost(AM$id[1], token = longtoken, n = 1000, likes = TRUE, comments = TRUE)
 post$comments[1,]
 ```
@@ -127,10 +141,8 @@ SML's Facebook data collection works only at the page level. The latest update o
 It can only generate Bimodal (two-mode) network of commenters and posts.
 
 ```{r}
-devtools::install_github('vosonlab/SocialMediaLab/SocialMediaLab')
-require(SocialMediaLab)
-require(magrittr)
-require(igraph)
+## devtools::install_github('vosonlab/SocialMediaLab/SocialMediaLab')
+
 
 Authenticate("facebook", appID = app_id, appSecret = app_secret, extendedPermissions = TRUE) %>% SaveCredential()
 LoadCredential() %>% Collect(pageName = "SPD", rangeFrom = "2017-09-25", rangeTo = '2018-02-12') -> SPDdata
@@ -161,10 +173,6 @@ NB: Twitter API can only search for 2 weeks of tweets, with the maximum of 1,500
 
 ## beware of copy-and-pasting, remember to check for extra spaces.
 
-require(SocialMediaLab)
-require(magrittr)
-require(igraph)
-require(tidyverse)
 
 tw_apikey <- ""
 tw_apisecret <- ""
@@ -214,6 +222,7 @@ while(TRUE) {
 
 ```
 
+
 ### Youtube (Weak)
 
 Google API console
@@ -226,8 +235,6 @@ NB: only get first 100 comments
 Authenticate("youtube", apiKey = "") %>% Collect(videoIDs = c("6Ejga4kJUts", "hUFPooqKllA", "Yam5uK6e-bQ", "95HqlWRFrAk"), verbose = TRUE) -> yt_data
 ```
 ```{r}
-require(tuber)
-require(lubridate)
 
 yt_oauth(app_id = "", app_secret = "")
 cranberries <- get_all_comments(video_id = 'hxsJvKYyVyg')
@@ -249,19 +256,33 @@ christmas <- get_all_comments(video_id = 'yXQViqx6GMY')
 christmas$publishedAt <- ymd_hms(as.character(christmas$publishedAt))
 
 saveRDS(christmas, "christmas.RDS")
+
+christmas <- readRDS('christmas.RDS')
 ymd_hms(as.character(christmas$publishedAt)) %>% floor_date(unit = "day") %>% data_frame(date = .) %>% group_by(date) %>% tally %>% ungroup -> cran_date
 
 range(cran_date$date)
 
 res <- data_frame(date = seq(from = min(cran_date$date), to = max(cran_date$date), by = 'day'))
 
-require(plotly)
 res %>% left_join(cran_date, by = "date") %>% replace_na(list(n = 0)) -> res
 
-ggplot(res, aes(x = date, y = n)) + geom_line()
+ggplot(res, aes(x = date, y = n)) + geom_line() -> gg
+ggplotly(gg)
 
 res %>% filter(date >= as.Date('2017-05-01') & date <= as.Date('2017-07-31')) %>% ggplot(aes(x = date, y = n)) + geom_line()
 
 ```
 
 https://www.reddit.com/r/me_irl/comments/6en7cy/meirl/?st=jdpzotmd&sh=9c033d72
+
+```{r}
+### text analysis: super simple one. Please go to the QTA workshop.
+require(quanteda)
+christmas <- readRDS('christmas.RDS')
+christmas_c <- corpus(x = as.character(christmas$textOriginal), docvars = christmas)
+pub2017 <- (as.Date(as.character(christmas$publishedAt)) < as.Date('2017-01-01'))
+christmas_dfm <- dfm(christmas_c, remove = stopwords('english'), remove_punct = TRUE, remove_url = TRUE)
+textplot_keyness(textstat_keyness(christmas_dfm, pub2017))
+```
+
+### Weibo
