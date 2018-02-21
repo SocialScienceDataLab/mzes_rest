@@ -10,6 +10,11 @@ https://api.ipify.org/?format=json
 > curl -s 'https://api.ipify.org/?format=json'
 
 ```{r}
+devtools::install_github("pablobarbera/Rfacebook/Rfacebook")
+devtools::install_github('vosonlab/SocialMediaLab/SocialMediaLab')
+devtools::install_github("soodoku/tuber")
+devtools::install_github("chainsawriot/weiborr")
+
 require(httr)
 require(jsonlite)
 require(magrittr)
@@ -23,12 +28,11 @@ require(lubridate)
 require(magrittr)
 require(igraph)
 require(plotly)
-
+require(quanteda)
 
 res <- GET("https://api.ipify.org/", query = list(format = 'json'))
 content(res, type = "text", encoding = 'utf-8')
 content(res, type = "text", encoding = 'utf-8') %>% fromJSON
-
 content(res, type = "text", encoding = 'utf-8') %>% fromJSON %>% `[[`("ip")
 ```
 
@@ -79,6 +83,7 @@ res <- GET("https://graph.facebook.com/", path = "AngelaMerkel/likes", query = l
 res <- GET("https://graph.facebook.com/", path = "AngelaMerkel/feed", query = list(access_token = temptoken))
 content(res)$data[[1]]$id
 res <- GET("https://graph.facebook.com/", path = paste0(content(res)$data[[1]]$id, "/", "comments"), query = list(access_token = temptoken, fields = "from"))
+```
 
 ### What POST does.
 
@@ -96,7 +101,6 @@ Tedious!
 Rfacebook by Pablo Barberá (LSE).
 
 ```{r}
-## devtools::install_github("pablobarbera/Rfacebook/Rfacebook")
 AM <- getPage("AngelaMerkel", feed = TRUE, reactions = TRUE, token = temptoken, api = 'v2.8')
 post <- getPost(AM$id[1], token = temptoken, n = 1000, likes = TRUE, comments = TRUE)
 post$comments[1,]
@@ -141,8 +145,6 @@ SML's Facebook data collection works only at the page level. The latest update o
 It can only generate Bimodal (two-mode) network of commenters and posts.
 
 ```{r}
-## devtools::install_github('vosonlab/SocialMediaLab/SocialMediaLab')
-
 
 Authenticate("facebook", appID = app_id, appSecret = app_secret, extendedPermissions = TRUE) %>% SaveCredential()
 LoadCredential() %>% Collect(pageName = "SPD", rangeFrom = "2017-09-25", rangeTo = '2018-02-12') -> SPDdata
@@ -233,9 +235,12 @@ NB: only get first 100 comments
 
 ```{r}
 Authenticate("youtube", apiKey = "") %>% Collect(videoIDs = c("6Ejga4kJUts", "hUFPooqKllA", "Yam5uK6e-bQ", "95HqlWRFrAk"), verbose = TRUE) -> yt_data
-```
-```{r}
 
+yt_data %>% 
+```
+
+```{r}
+require(tuber)
 yt_oauth(app_id = "", app_secret = "")
 cranberries <- get_all_comments(video_id = 'hxsJvKYyVyg')
 
@@ -277,7 +282,6 @@ https://www.reddit.com/r/me_irl/comments/6en7cy/meirl/?st=jdpzotmd&sh=9c033d72
 
 ```{r}
 ### text analysis: super simple one. Please go to the QTA workshop.
-require(quanteda)
 christmas <- readRDS('christmas.RDS')
 christmas_c <- corpus(x = as.character(christmas$textOriginal), docvars = christmas)
 pub2017 <- (as.Date(as.character(christmas$publishedAt)) < as.Date('2017-01-01'))
@@ -286,3 +290,11 @@ textplot_keyness(textstat_keyness(christmas_dfm, pub2017))
 ```
 
 ### Weibo
+
+Weibo is a China-eqiuvalent of Twitter.
+
+It has an API but mostly not for research use. It gets increasingly difficult to collect data from it.
+
+http://open.weibo.com/wiki/%E9%A6%96%E9%A1%B5
+```
+
