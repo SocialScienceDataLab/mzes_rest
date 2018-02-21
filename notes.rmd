@@ -10,22 +10,23 @@ https://api.ipify.org/?format=json
 > curl -s 'https://api.ipify.org/?format=json'
 
 ```{r}
+install.packages('devtools')
 devtools::install_github("pablobarbera/Rfacebook/Rfacebook")
 devtools::install_github('vosonlab/SocialMediaLab/SocialMediaLab')
 devtools::install_github("soodoku/tuber")
 devtools::install_github("chainsawriot/weiborr")
+
+install.packages(c('httr', 'jsonlite', 'tidyverse', 'igraph', 'lubridate', 'plotly', 'quanteda'))
 
 require(httr)
 require(jsonlite)
 require(magrittr)
 require(tidyverse)
 require(SocialMediaLab)
-require(magrittr)
 require(igraph)
 require(tuber)
 require(Rfacebook)
 require(lubridate)
-require(magrittr)
 require(igraph)
 require(plotly)
 require(quanteda)
